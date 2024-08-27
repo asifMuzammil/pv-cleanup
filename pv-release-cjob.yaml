@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: monitoring
+  name: pv-released-checker
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: pv-released-checker
+              image: bitnami/kubectl:latest
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  kubectl get pv -o json | jq -r '.items[] | select(.status.phase == "Released") | select(.spec.claimRef.namespace == "sm-kubegres" ) | .metadata.name + " " + .spec.claimRef.namespace + " " + .status.phase + " " + .spec.storageClassName'
+              volumeMounts:
+                - name: pv-log-volume
+                  mountPath: /outputpv
+          #restartPolicy: OnFailure
+          volumes:
+            - name: pv-log-volume
+              hostPath: # This mounts a directory from the host node
+                path: /var/log/pvolume/
+                type: DirectoryOrCreate
+          tolerations:
+            - key: "node.kubernetes.io/master"
+              operator: "Exists"
+              effect: "NoSchedule"
+          restartPolicy: OnFailure

@@ -1,0 +1,152 @@
+mkdir loki
+
+cd loki
+
+wget https://raw.githubusercontent.com/grafana/loki/v3.0.0/cmd/loki/loki-local-config.yaml -O loki-config.yaml
+
+wget https://raw.githubusercontent.com/grafana/loki/v3.0.0/clients/cmd/promtail/promtail-docker-config.yaml -O promtail-config.yaml
+
+docker run --name loki -d -v $(pwd):/mnt/config -p 3100:3100 grafana/loki:3.0.0 -config.file=/mnt/config/loki-config.yaml
+
+docker run --name promtail -d -v $(pwd):/mnt/config -v /var/log:/var/log --link loki grafana/promtail:3.0.0 -config.file=/mnt/config/promtail-config.yaml
+
+To view readiness, navigate to http://localhost:3100/ready.
+To view metrics, navigate to http://localhost:3100/metrics.
+
+
+
+sudo helm repo add grafana https://grafana.github.io/helm-charts
+
+sudo helm repo update
+
+sudo helm search repo loki or grafan
+********we will install grafana/loki-stack it install promtail also ***********
+
+
+sudo helm show values grafana/loki-stack >values.yaml
+********* if grafana is already install in your cluster with proumethues or any other other stack so don't need to enabel it ***************
+********* make changes in values.yaml file modifiy in grafana: enable true ***********
+********* also cahnge to image: tag to latest or any verision as per requirment **********
+
+helm install --namespace monitoring --values values.yaml loki grafana/loki-stack
+********** for install with modifiy values run this command ***********
+
+sudo helm get values -n monitoring  loki
+******** for getting values when loki is up and run **********
+
+sudo kubectl get secret loki-grafana -n monitoring -o jsonpath="{.data.admin-password}"
+************ to get the default password and decode it with base64 *******************
+
+
+
+sudo kubectl get secret loki-promtail -n monitoring -o jsonpath="{.data.promtail\.yaml}" |base64 -d  >loki-config.yaml
+
+getting output of loki secret config file
+
+after modifing the value create new sceret from file and restart pod
+
+
+count_over_time({job="monitoring/pv-released-checker"} |= "Released" [1m])
+{job="default/pv-released-checker"} |= ``
+
+
+
+
+**************************************************************
+mail setup test
+******************************************
+
+
+
+
+
+
+Define how often Grafana should evaluate the alert condition. You can specify the evaluation interval based on your needs.
+
+2. Configure Notification Channels
+
+Go to Notification Channels:
+
+In the Grafana sidebar, click on the Alerting icon (bell) and select Notification channels.
+
+Add New Channel:
+
+
+
+Click Add channel.
+
+Choose Email as the type of notification channel.
+
+Configure Email Settings:
+
+
+
+Fill in the details for your email notifications:
+
+Name: Give a name to your email channel.
+
+Addresses: Enter the email addresses where alerts should be sent.
+
+Additional Settings: Configure other settings like SMTP server details if required.
+
+Save the Notification Channel:
+
+
+
+Click Save to store your email notification settings.
+
+3. Link Notification Channel to Alert
+
+Return to Alert Rule:
+
+
+
+Go back to the alert rule you created in the panel editor.
+
+Add Notification Channel:
+
+
+
+In the Send to section of the alert configuration, select the email notification channel you created earlier.
+
+Save the Alert Rule:
+
+
+
+Save your alert rule configuration to apply the changes.
+
+4. Test the Alert
+
+Simulate Alert:
+
+
+
+
+
+***********template**************
+
+{{ define "pvtemplate" }}
+  Alert: {{ .Status | toUpper }}
+
+  Summary:
+  The following Persistent Volumes (PVs) are currently in the "Released" status. Please review the list and take the necessary action to approve them for deletion.
+
+  Details:
+  {{ range .Alerts }}
+  - PV Count: {{ .Labels.PV }}
+  - Job: {{ .Labels.job }}
+  - Namespace: {{ .Labels.namespace }}
+  - Pod: {{ .Labels.pod }}
+  - Node: {{ .Labels.node_name }}
+  - Timestamp: {{ .StartsAt }}
+
+  {{ end }}
+
+  Next Steps:
+  To review the detailed list and take action, please visit the Dashboard by clicking [here]({{ .ExternalURL }}).
+
+  Please ensure that these PVs are reviewed promptly to maintain optimal system performance.
+
+  Thank you,
+  Your Monitoring System
+{{ end }}

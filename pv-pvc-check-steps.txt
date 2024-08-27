@@ -1,0 +1,4 @@
+**************** filter pv in Released state *************************
+
+
+kubectl get pv -o json | jq -r '.items[] | select(.status.phase == "Released") | select(.spec.claimRef.namespace == "sm-kubegres" ) | .metadata.name + " " + .spec.claimRef.namespace + " " + .status.phase + " " + .spec.storageClassName'

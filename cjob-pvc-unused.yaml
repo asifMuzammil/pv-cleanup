@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  namespace: monitoring
+  name: pvc-checker
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: pvc-checker
+              image: bitnami/kubectl:latest
+              command: ["/bin/bash", "-c"]
+              args:
+                - |
+                  namespaces=("sm-kubegres")
+                  for ns in $namespaces; do
+                    # Get all PVCs in the namespace that are in Bound status
+                    bound_pvcs=$(kubectl get pvc -n $ns -o json | jq -r '.items[] | select(.status.phase=="Bound") | .metadata.name')
+
+                    unused_pvcs=()
+
+                    for pvc in $bound_pvcs; do
+                      #echo "Checking PVC: $pvc in namespace: $ns"
+                      # Check if the PVC is used by any pod
+                      pod_using_pvc=$(kubectl get pods -n $ns -o json | jq --arg pvc "$pvc" '.items[] | select(.spec.volumes[].persistentVolumeClaim.claimName==$pvc or .metadata.name==$pvc) | .metadata.name')
+
+                      if [ -z "$pod_using_pvc" ]; then
+                        unused_pvcs+=($pvc)
+                      fi
+                    done
+
+                    if [ ${#unused_pvcs[@]} -gt 0 ]; then
+                      #echo "Unused PVCs in namespace $ns:"
+                      for pvc in "${unused_pvcs[@]}"; do
+                       echo # "$pvc"
+                      done
+
+                      # Double-check the unused PVCs
+                      for pvc in "${unused_pvcs[@]}"; do
+                        #echo "Re-checking PVC: $pvc in namespace: $ns"
+                        pod_using_pvc=$(kubectl get pods -n $ns -o json | jq --arg pvc "$pvc" '.items[] | select(.spec.volumes[].persistentVolumeClaim.claimName==$pvc or .metadata.name==$pvc) | .metadata.name')
+
+                        if [ -z "$pod_using_pvc" ]; then
+                         # echo "Confirmed: PVC $pvc in namespace $ns is not used by any pod."
+                          # Get the corresponding PV name
+                          pv_name=$(kubectl get pvc $pvc -n $ns -o json | jq -r '.spec.volumeName')
+                          # Save the confirmed PVC and PV names to the file
+                          echo "$ns $pvc  ($pv_name)"
+                          # kubectl delete pvc $pvc -n $ns
+                        else
+                          echo "Error: PVC $pvc in namespace $ns is actually used by pod(s): $pod_using_pvc"
+                        fi
+                      done
+                    fi
+                  done
+
+                  #echo "$ns/$pvc ($pv_name)"
+                  #cat /confirmed_pvcs.txt
