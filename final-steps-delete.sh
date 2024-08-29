@@ -13,7 +13,7 @@ echo "Fetching and filtering PVs..."
 filtered_pvs=$(sudo kubectl get pv -o json | jq -r '
    .items[] |
     select(.status.phase == "Released") |
-    select(.spec.persistentVolumeReclaimPolicy == "Retain") | select(.spec.claimRef.namespace == "sm-kubegres") |
+    select(.spec.persistentVolumeReclaimPolicy == "Retain") | select(.spec.claimRef.namespace == "test-namespace") |
    .metadata.name + " " + (.spec.storageClassName // "N/A") + " " +
    (.spec.nodeAffinity.required.nodeSelectorTerms[0].matchExpressions[0].values | if length > 0 then .[] else "NoNodeAffinity" end) + " " +
    (.spec.local.path // "NoPath")

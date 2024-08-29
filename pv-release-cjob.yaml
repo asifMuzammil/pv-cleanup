@@ -15,7 +15,7 @@ spec:
               command: ["/bin/sh", "-c"]
               args:
                 - |
-                  kubectl get pv -o json | jq -r '.items[] | select(.status.phase == "Released") | select(.spec.claimRef.namespace == "sm-kubegres" ) | .metadata.name + " " + .spec.claimRef.namespace + " " + .status.phase + " " + .spec.storageClassName'
+                  kubectl get pv -o json | jq -r '.items[] | select(.status.phase == "Released") | select(.spec.claimRef.namespace == "test-namespace" ) | .metadata.name + " " + .spec.claimRef.namespace + " " + .status.phase + " " + .spec.storageClassName'
               volumeMounts:
                 - name: pv-log-volume
                   mountPath: /outputpv

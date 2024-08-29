@@ -15,10 +15,11 @@ spec:
               command: ["/bin/bash", "-c"]
               args:
                 - |
-                  namespaces=("sm-kubegres")
+                # namespaces=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}')
+                  namespaces=("test-namespace")
                   for ns in $namespaces; do
                     # Get all PVCs in the namespace that are in Bound status
-                    bound_pvcs=$(kubectl get pvc -n $ns -o json | jq -r '.items[] | select(.status.phase=="Bound") | .metadata.name')
+                    bound_pvcs=$(kubectl get pvc -n $ns -o json | jq -r '.items[] | select(.status.phase=="Bound") | .metada#namespaces=$(kubectl get namespaces -o jsonpath='{.items[*].metadata.name}')ta.name')
 
                     unused_pvcs=()
 
